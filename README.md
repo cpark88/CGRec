@@ -4,7 +4,7 @@
 ## Overview
 ***
 Code for our CIKM 2023 (<https://uobevents.eventsair.com/cikm2023/>) Paper "Cracking the Code of Negative Transfer: A Cooperative Game Theoretic Approach for Cross-Domain Sequential Recommendation." 
-![model_arch](https://github.com/cpark88/CGRec/blob/main/recgpt_overall%20(1).pdf)
+![model_arch](https://github.com/cpark88/CGRec/blob/main/cgrec_archecture.png)
 We referred to the source code of S3Rec (<https://github.com/RUCAIBox/CIKM2020-S3Rec/tree/master>).
 
 ## Abstract
