@@ -3,7 +3,7 @@
 
 ## Overview
 ***
-Code for our CIKM 2023 (<https://uobevents.eventsair.com/cikm2023/>) Paper "Cracking the Code of Negative Transfer: A Cooperative Game Theoretic Approach for Cross-Domain Sequential Recommendation." 
+Official Code for our CIKM 2023 (<https://uobevents.eventsair.com/cikm2023/>) Paper "Cracking the Code of Negative Transfer: A Cooperative Game Theoretic Approach for Cross-Domain Sequential Recommendation." 
 ![model_arch](https://github.com/cpark88/CGRec/blob/main/cgrec_archecture.png)
 We referred to the source code of S3Rec (<https://github.com/RUCAIBox/CIKM2020-S3Rec/tree/master>).
 
@@ -23,15 +23,6 @@ We show that our model is superior to prior works in terms of model performance 
 ```bash
 pip install -r requirements.txt
 ```
-
-
-## Dataset
-***
-To facilitate smooth testing, we have uploaded a small-sized temporary raw data in src/dataset/raw. By executing the command below, the datasets necessary for model training will be generated and saved. 
-```python
-python make_dataset.py --data_name='amazon' --strd_ym='202312'
-```
-
 
 ## Train
 ***
