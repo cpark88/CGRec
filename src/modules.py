@@ -1,6 +1,6 @@
-# -*- coding:utf-8 -*-
-# __author__ = 'wanghui'
-# __date__ = '2020/03/30 10:53'
+# -*- coding: utf-8 -*-
+# @Time    : 2023/4/11 16:01
+# @Author  : cpark
 
 import numpy as np
 
@@ -65,7 +65,6 @@ class Embeddings(nn.Module):
         items_embeddings = self.item_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
         embeddings = items_embeddings + position_embeddings
-        # 修改属性
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -118,7 +117,6 @@ class SelfAttention(nn.Module):
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        # Fixme
         attention_probs = self.attn_dropout(attention_probs)
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()

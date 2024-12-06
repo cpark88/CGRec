@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2020/3/30 11:06
-# @Author  : Hui Wang
+# @Time    : 2023/4/11 16:01
+# @Author  : cpark
 
 import numpy as np
 import math
@@ -8,19 +8,15 @@ import random
 import os
 import json
 import pickle
-# from scipy.sparse import csr_matrix # pakage issue
-
 import torch
 import torch.nn.functional as F
 
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader, WeightedRandomSampler
-# import scipy # package issue
-# from sklearn.utils import check_array # package issue
 import pandas as pd
 import warnings
 
-####################################################################### for log #######################################################################
+
 def set_seed(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -71,7 +67,6 @@ class EarlyStopping:
 
     def compare(self, score):
         for i in range(len(score)):
-            # 有一个指标增加了就认为是还在涨
             if score[i] > self.best_score[i]+self.delta:
                 return False
         return True
@@ -107,43 +102,6 @@ def kmax_pooling(x, dim, k):
 
 def avg_pooling(x, dim):
     return x.sum(dim=dim)/x.size(dim)
-
-# scipy pakage issue
-# def generate_rating_matrix_valid(user_seq, num_users, num_items):
-#     # three lists are used to construct sparse matrix
-#     row = []
-#     col = []
-#     data = []
-#     for user_id, item_list in enumerate(user_seq):
-#         for item in item_list[:-2]: #
-#             row.append(user_id)
-#             col.append(item)
-#             data.append(1)
-
-#     row = np.array(row)
-#     col = np.array(col)
-#     data = np.array(data)
-#     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
-
-#     return rating_matrix
-
-# def generate_rating_matrix_test(user_seq, num_users, num_items):
-#     # three lists are used to construct sparse matrix
-#     row = []
-#     col = []
-#     data = []
-#     for user_id, item_list in enumerate(user_seq):
-#         for item in item_list[:-1]: #
-#             row.append(user_id)
-#             col.append(item)
-#             data.append(1)
-
-#     row = np.array(row)
-#     col = np.array(col)
-#     data = np.array(data)
-#     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
-
-#     return rating_matrix
 
 def get_user_seqs(data_file):
     lines = open(data_file).readlines()
@@ -257,18 +215,6 @@ def get_metric(pred_list, topk=10):
             HIT += 1.0
     return HIT /len(pred_list), NDCG /len(pred_list), MRR /len(pred_list)
 
-
-# def get_metric(pred_list, topk=10):
-#     NDCG = 0.0
-#     HIT = 0.0
-#     MRR = 0.0
-#     # [batch] the answer's rank
-#     for rank in pred_list:
-#         MRR += 1.0 / (rank + 1.0)
-#         if rank < topk:
-#             NDCG += 1.0 / np.log2(rank + 2.0)
-#             HIT += 1.0
-#     return (HIT+1e24) /(len(pred_list)+1e24), (NDCG+1e24) / (len(pred_list)+1e24), (MRR+1e24) / (len(pred_list)+1e24)
 
 def precision_at_k_per_sample(actual, predicted, topk):
     num_hits = 0
@@ -536,55 +482,6 @@ def create_dataloaders(
     return train_dataloader, valid_dataloaders
 
 
-# def create_explain_matrix(input_dim, cat_emb_dim, cat_idxs, post_embed_dim):
-#     """
-#     This is a computational trick.
-#     In order to rapidly sum importances from same embeddings
-#     to the initial index.
-
-#     Parameters
-#     ----------
-#     input_dim : int
-#         Initial input dim
-#     cat_emb_dim : int or list of int
-#         if int : size of embedding for all categorical feature
-#         if list of int : size of embedding for each categorical feature
-#     cat_idxs : list of int
-#         Initial position of categorical features
-#     post_embed_dim : int
-#         Post embedding inputs dimension
-
-#     Returns
-#     -------
-#     reducing_matrix : np.array
-#         Matrix of dim (post_embed_dim, input_dim)  to performe reduce
-#     """
-
-#     if isinstance(cat_emb_dim, int):
-#         all_emb_impact = [cat_emb_dim - 1] * len(cat_idxs)
-#     else:
-#         all_emb_impact = [emb_dim - 1 for emb_dim in cat_emb_dim]
-
-#     acc_emb = 0
-#     nb_emb = 0
-#     indices_trick = []
-#     for i in range(input_dim):
-#         if i not in cat_idxs:
-#             indices_trick.append([i + acc_emb])
-#         else:
-#             indices_trick.append(
-#                 range(i + acc_emb, i + acc_emb + all_emb_impact[nb_emb] + 1)
-#             )
-#             acc_emb += all_emb_impact[nb_emb]
-#             nb_emb += 1
-
-#     reducing_matrix = np.zeros((post_embed_dim, input_dim))
-#     for i, cols in enumerate(indices_trick):
-#         reducing_matrix[cols, i] = 1
-
-#     return scipy.sparse.csc_matrix(reducing_matrix) #package issue
-
-
 def create_group_matrix(list_groups, input_dim):
     """
     Create the group matrix corresponding to the given list_groups
@@ -797,16 +694,6 @@ class ComplexEncoder(json.JSONEncoder):
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
-
-# def check_input(X):
-#     """
-#     Raise a clear error if X is a pandas dataframe
-#     and check array according to scikit rules
-#     """
-#     if isinstance(X, (pd.DataFrame, pd.Series)):
-#         err_message = "Pandas DataFrame are not supported: apply X.values when calling fit"
-#         raise TypeError(err_message)
-#     check_array(X) # package issue
 
 
 def check_warm_start(warm_start, from_unsupervised):

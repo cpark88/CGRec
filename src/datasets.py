@@ -1,10 +1,11 @@
-import random
+# -*- coding: utf-8 -*-
+# @Time    : 2023/4/11 16:01
+# @Author  : cpark
 
+import random
 import torch
 from torch.utils.data import Dataset
-
 from utils import neg_sample
-
 import numpy as np
 import pickle
 
@@ -19,52 +20,24 @@ class CausalDataset(Dataset):
         
     def __len__(self):
         if self.data_type in {"valid","test"}:
-            len_=len(self.user_seq[0])#//1000
+            len_=len(self.user_seq[0])
         else:
-            len_=len(self.user_seq[0])#//1000
-        return len_#len(self.user_seq[0])#조심! 
-
-        
-        # return len(self.user_seq[0])#조심! 
+            len_=len(self.user_seq[0])
+        return len_ 
     
     def __getitem__(self, index):
-
-        
-        # with open('additional_except.pkl', "rb") as fp:   # Unpickling
-        #     additional_except_list = pickle.load(fp)        
-        # top_except_list=[j for j in range(300)]
-        
         type_ = list(map(int, self.user_seq[0][index].split(',')))
-        
-        if self.args.data_name=='skt':
-            items = list(map(int, self.user_seq[3][index].split(',')))
-        else:#amazon
-            items = list(map(int, self.user_seq[1][index].split(',')))
+        items = list(map(int, self.user_seq[1][index].split(',')))
 
-
-
-        # total_except = np.where([i!=100 for i in type_])
         total_except=np.where([i not in self.except_type  for i in type_]) 
 
-        
-        
-        
-        if self.args.data_name=='skt':
-            type_ = np.array(type_)[total_except].tolist()
-            cat2 = list(map(int, self.user_seq[1][index].split(',')))
-            cat2 = np.array(cat2)[total_except].tolist()
-            cat1 = list(map(int, self.user_seq[2][index].split(',')))
-            cat1 = np.array(cat1)[total_except].tolist()
-    
-            items = np.array(items)[total_except].tolist() 
-        else:#amazon
-            type_ = np.array(type_)[total_except].tolist()
-            cat2 = list(map(int, self.user_seq[0][index].split(',')))
-            cat2 = np.array(cat2)[total_except].tolist()
-            cat1 = list(map(int, self.user_seq[0][index].split(',')))
-            cat1 = np.array(cat1)[total_except].tolist()
-    
-            items = np.array(items)[total_except].tolist() 
+        type_ = np.array(type_)[total_except].tolist()
+        cat2 = list(map(int, self.user_seq[0][index].split(',')))
+        cat2 = np.array(cat2)[total_except].tolist()
+        cat1 = list(map(int, self.user_seq[0][index].split(',')))
+        cat1 = np.array(cat1)[total_except].tolist()
+
+        items = np.array(items)[total_except].tolist() 
         
         
         assert self.data_type in {"train", "valid", "test", "inference"}
@@ -176,13 +149,7 @@ class CausalDataset(Dataset):
         for _ in item_input:
             item_neg.append(neg_sample(seq_set, self.args.item_size))
             
-            
-            
-            
-            
-            
-            
-        
+
         test_neg = []
         for _ in range(100):
             test_neg.append(neg_sample(seq_set, self.args.item_size))
@@ -254,82 +221,3 @@ class CausalDataset(Dataset):
             torch.tensor(type_pos, dtype=torch.long),  
         )
         return cur_tensors
-
-#profile 추가 버전
-class PretrainProfileNewSKTDataset(Dataset):
-    def __init__(self, args, user_seq, profile_feat, data_type='train'):
-        self.args = args
-        self.profile_feat = profile_feat
-        self.max_len = args.max_seq_length
-        self.user_seq = user_seq
-        self.data_type = data_type
-        
-    def __len__(self):
-        return len(self.user_seq) # 태산님 이거 self.seq[0] 으로 하셔야 합니다!
-    
-    def __getitem__(self, index):
-        # profile
-        profile_feat = self.profile_feat[index]
-
-        # sequence
-        items = self.user_seq[index]
-        
-        assert self.data_type in {"train", "valid", "test"}
-
-        # [0, 1, 2, 3, 4, 5, 6]
-        # train [0, 1, 2, 3]
-        # target [1, 2, 3, 4]
-
-        # valid [0, 1, 2, 3, 4]
-        # answer [5]
-
-        # test [0, 1, 2, 3, 4, 5]
-        # answer [6]
-        
-        if self.data_type == "train":
-            input_ids = items[:-3]
-            target_pos = items[1:-2]
-            answer = [0] # no use
-
-        elif self.data_type == 'valid':
-            input_ids = items[:-2]
-            target_pos = items[1:-1]
-            answer = [items[-2]]
-
-        else:
-            input_ids = items[:-1]
-            target_pos = items[1:]
-            answer = [items[-1]]
-
-        target_neg = []
-        seq_set = set(items)
-        for _ in input_ids:
-            target_neg.append(neg_sample(seq_set, self.args.item_size))
-        
-        test_neg = []
-        for _ in range(100):
-            test_neg.append(neg_sample(seq_set, self.args.item_size))
-            
-        pad_len = self.max_len - len(input_ids)
-        input_ids = [0] * pad_len + input_ids
-        target_pos = [0] * pad_len + target_pos
-        target_neg = [0] * pad_len + target_neg
-
-        input_ids = input_ids[-self.max_len:]
-        target_pos = target_pos[-self.max_len:]
-        target_neg = target_neg[-self.max_len:]
-
-        assert len(input_ids) == self.max_len
-        assert len(target_pos) == self.max_len
-        assert len(target_neg) == self.max_len        
-             
-        cur_tensors = (
-            torch.tensor(input_ids, dtype=torch.long),
-            torch.tensor(target_pos, dtype=torch.long),
-            torch.tensor(target_neg, dtype=torch.long),
-            torch.tensor(test_neg, dtype=torch.long),
-            torch.tensor(answer, dtype=torch.long),
-            torch.tensor(profile_feat, dtype=torch.float),
-        )
-        return cur_tensors
-    

@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from modules import Encoder, LayerNorm, Intermediate 
-from tab_network import TabNetPretraining
 from utils import create_group_matrix
 
 
@@ -49,11 +48,7 @@ class CausalModel(nn.Module):
         else:
             self.criterion = nn.NLLLoss(ignore_index=0)
         self.apply(self.init_weights)
-        
-        if self.args.n_steps <= 0:
-            raise ValueError("n_steps should be a positive integer.")
-        if self.args.n_independent == 0 and self.n_shared == 0:
-            raise ValueError("n_shared and n_independent can't be both zero.")
+
 
     def add_position_embedding(self, item_seq, cat1_seq, cat2_seq, type_seq, hierarhical):
         seq_length = item_seq.size(1)
@@ -83,7 +78,7 @@ class CausalModel(nn.Module):
         a=1/(self.combination_cp(len(total_domain),len(subset))*len(subset))
         return a    
 
-    def pretrain_seq(self, item_input, item_pos, item_neg, test_neg , item_answer, cat1_input, cat1_pos, cat1_neg , cat2_input, cat2_pos, cat2_neg, type_input, hierarhical): # 학습 모델; type은 contrastive learning 하지 않음, forward로 바꿔야 ddp 가능
+    def pretrain_seq(self, item_input, item_pos, item_neg, test_neg , item_answer, cat1_input, cat1_pos, cat1_neg , cat2_input, cat2_pos, cat2_neg, type_input, hierarhical):
         
         # for sequence modeling (decoder)
         attention_mask = (item_input > 0).long()
@@ -121,7 +116,7 @@ class CausalModel(nn.Module):
         
         if self.args.hierarhical=='y':
             sequence_output_1 = self.prediction_layer_1(sequence_output)
-            sequence_output_2 = self.prediction_layer_2(sequence_output+sequence_output_1) # 일단 더하는 방식
+            sequence_output_2 = self.prediction_layer_2(sequence_output+sequence_output_1) 
 
             loss_contrastive_1 = 0
             loss_contrastive_2 = 0

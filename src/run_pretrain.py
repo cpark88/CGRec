@@ -11,12 +11,11 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 import os
 import argparse
 
-from datasets import PretrainProfileNewSKTDataset, CausalDataset
-from trainers import PretrainProfileTrainer
-from models import CausalModel#seq_to_profile,S3RecModel
+from datasets import CausalDataset
+from models import CausalModel
 
 from utils import get_user_seqs_long, get_item2attribute_json, check_path, set_seed, get_cat2attribute_skt, get_profile_cat_meta, get_user_profile, EarlyStopping
-
+from trainers import PretrainProfileTrainer
 
 
 from dataset.vocab import WordVocab
@@ -34,12 +33,7 @@ def main_worker():
     parser = argparse.ArgumentParser()
     
     # define baseline or skt
-    parser.add_argument("--analytics_type", default="skt", type=str)
     parser.add_argument("--loss_type", default="negative", type=str)
-    parser.add_argument("--target_type", default="true_target", type=str)
-    parser.add_argument("--hard_negative", default=False, type=bool)
-    parser.add_argument("--profile_yn", default='Y', type=str)
-    
     # data directory
     parser.add_argument('--output_dir', default='output/', type=str)
 
@@ -69,22 +63,9 @@ def main_worker():
     parser.add_argument("--gpu_id", type=str, default="0", help="gpu_id")
     
     # profile_model args
-    parser.add_argument("--n_steps", default=4, type=int, help="num steps of tabnet")
-    parser.add_argument("--n_independent", default=2, type=int, help="num of independent layer in enc of tabnet")
-    parser.add_argument("--n_shared", default=2, type=int, help="num of shared layer in enc of tabnet")
-    parser.add_argument("--mask_type", default='sparsemax', type=str, help="sparsemax type of tabnet: sparsemax, entmax")
-    parser.add_argument("--n_shared_decoder", default=2, type=int, help="num of shared layer in enc of tabnet")
-    parser.add_argument("--n_indep_decoder", default=2, type=int, help="num of independant layer in enc of tabnet")
-    parser.add_argument("--gamma", default=1, type=float, help="relxation parameter of tabnet: should be more than 1")
-    parser.add_argument("--cat_emb_dim", default=2, type=int, help="category embedding size")
-    parser.add_argument("--device", default="cuda:0", type=str, help="device setting")
-    parser.add_argument("--pretraining_ratio", default=0.5, type=float, help="pretraining ratio for profile") 
-    
-    parser.add_argument("--data_name", default='skt', type=str, help="data_name")
+    parser.add_argument("--data_name", default='amazon', type=str, help="data_name")
     parser.add_argument("--shaply_value", default='y', type=str, help="shaply value adoption")
     parser.add_argument("--hierarhical", default='y', type=str, help="hierarhical adoption")
-    
-    
 
     parser.add_argument('--world_size', default=8, type=int,help='number of nodes for distributed training')
     parser.add_argument('--local_rank', default=None, type=int,help='node rank for distributed training')
@@ -116,13 +97,6 @@ def main_worker():
     fp.close()
     print("Data Loading Complete!")
     
-    # chunk 데이터 로딩 버전
-    # print(args.local_rank,"GPU Data Loading Start!")
-    # with open(args.data_name+"_list_dataset_"+str(args.local_rank)+"_"+args.strd_ym+".pkl", "rb") as fp:   # Unpickling
-    #     user_seq = pickle.load(fp)
-    # fp.close()
-    # print(args.local_rank,"GPU Data Loading Complete!")
-    
     columns=['type','cat2','cat1','item']
 
 
@@ -139,25 +113,14 @@ def main_worker():
     max_cat1 = len_voca[2]        
     max_item = len_voca[3]
 
-
-    
-    
-    
-    
-    if args.data_name=='skt':
-        args.type_size = max_type
-        args.cat2_size = max_cat2
-        args.cat1_size = max_cat1
-        args.item_size = max_item
-    else:
-        args.type_size = max_type
-        args.cat2_size = max_cat2+1
-        args.cat1_size = max_cat1+2
-        args.item_size = max_item
+    args.type_size = max_type
+    args.cat2_size = max_cat2+1
+    args.cat1_size = max_cat1+2
+    args.item_size = max_item
     
     
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-profile_{args.profile_yn}-strd_ym_{args.strd_ym}'
+    args_str = f'{args.model_name}-{args.data_name}-strd_ym_{args.strd_ym}'
     args.output_path = args.output_dir + args.data_name + '/'
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
@@ -181,15 +144,11 @@ def main_worker():
     test_dataset = CausalDataset(args, user_seq, [100], data_type='test')
     test_sampler = SequentialSampler(test_dataset)
     test_dataloader = DataLoader(test_dataset, sampler=test_sampler, batch_size=args.batch_size, num_workers=4, persistent_workers=True)
-    # test_dataloader = DataLoader(test_dataset, sampler=test_sampler, batch_size=1, num_workers=4, persistent_workers=True)
-  
-   
+
     evaluation_performance=0
     for epoch in range(args.epochs):
         gc.collect()
         train_dataset = CausalDataset(args, user_seq, args.except_type, data_type='train') # for not windowing
-        # print(train_dataset.__getitem__(11))
-        ############ddp-total dataset version
         train_sampler = DistributedSampler(
             train_dataset,
             rank=args.local_rank,

@@ -9,5 +9,4 @@ torchrun --nproc_per_node=2 --master_port=1234 run_pretrain.py \
 --strd_ym='202312' \
 --shaply_value='y' \
 --hierarhical='y' \
---lr=0.001 \
---profile_yn='n'
+--lr=0.001 

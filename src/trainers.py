@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2020/3/30 11:06
-# @Author  : Hui Wang
+# @Time    : 2023/4/11 16:01
+# @Author  : cpark
 
 import numpy as np
 import tqdm
@@ -25,9 +25,6 @@ class Trainer:
                  test_dataloader, args):
 
         self.args = args
-        # self.cuda_condition = torch.cuda.is_available() and not self.args.no_cuda
-        # self.device = torch.device("cuda" if self.cuda_condition else "cpu")
-        
         self.mlm_output = nn.Linear(args.hidden_size, args.item_size-1)
         
         
@@ -35,19 +32,13 @@ class Trainer:
         self.local_rank = args.local_rank
         self.device = torch.device("cuda:"+str(self.local_rank))
         self.model = model.to(self.device)
-        
-        # if self.cuda_condition:
-        #     self.model.cuda()
-
         # Setting the train and test data loader
         self.train_dataloader = train_dataloader
         self.eval_dataloader = eval_dataloader
         self.test_dataloader = test_dataloader
 
-        # self.data_name = self.args.data_name
         betas = (self.args.adam_beta1, self.args.adam_beta2)
         self.optim = Adam(self.model.parameters(), lr=self.args.lr, betas=betas, weight_decay=self.args.weight_decay)
-        # self.optim = Adam(list(self.model.parameters())+[self.model.alpha,self.model.beta], lr=self.args.lr, betas=betas, weight_decay=self.args.weight_decay)
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
         
@@ -182,10 +173,7 @@ class PretrainProfileTrainer(Trainer):
                           bar_format="{l_bar}{r_bar}")
         if train:
             self.model.train()
-            
-            profile_loss_avg = 0.0
             seq_loss_avg = 0.0
-            seq_profile_loss_avg = 0.0
             loss_avg = 0.0
             acc_avg = 0.0
             
@@ -194,52 +182,25 @@ class PretrainProfileTrainer(Trainer):
                 # gc.collect()
                 # 0. batch_data will be sent into the device(GPU or CPU)
                 batch = tuple(t.to(self.device) for t in batch)
-                # input_ids, target_pos, target_neg, _, _, profile_feat = batch
-                
-                
+
                 # with autocast(): #enabled=False
                 item_input, item_pos, item_neg, test_neg , item_answer, cat1_input, cat1_pos, cat1_neg , cat2_input, cat2_pos, cat2_neg, type_input, type_pos = batch
-
-                if self.args.profile_yn == 'Y':
-                    loss, seq_loss, seq_profile_loss, profile_loss = self.model.module.pretrain(input_item, target_pos, target_neg, profile_feat)
-                else:
-
-                    # loss를 Pretrain_seq 자체에서 생성
-                    loss, seq_loss, shaply_values_softmax, shaply_values_datanum  = self.model.module.pretrain_seq(item_input, item_pos, item_neg, test_neg, item_answer, cat1_input, cat1_pos, cat1_neg, cat2_input, cat2_pos, cat2_neg, type_input, self.args.hierarhical) #loss, seq_loss, shaply_values_softmax, shaply_values_datanum .to(self.device)
-                    seq_profile_loss = torch.tensor(0)
-                    profile_loss = torch.tensor(0)
+                # loss를 Pretrain_seq 자체에서 생성
+                loss, seq_loss, shaply_values_softmax, shaply_values_datanum  = self.model.module.pretrain_seq(item_input, item_pos, item_neg, test_neg, item_answer, cat1_input, cat1_pos, cat1_neg, cat2_input, cat2_pos, cat2_neg, type_input, self.args.hierarhical)
 
                 self.optim.zero_grad()
                 loss.backward()
-                # torch.nn.utils.clip_grad_norm_(self.model.module.parameters(), max_norm=1)
                 self.optim.step()
 
-                # self.optim.zero_grad()
-                # self.scaler.scale(loss).backward()
-                # torch.nn.utils.clip_grad_norm_(self.model.module.parameters(), max_norm=1) 
-                # self.scaler.step(self.optim)
-                # self.scaler.update() 
-                
-                
-                
-                
-                
-                
                 seq_loss_avg += seq_loss.item()
-                seq_profile_loss_avg += seq_profile_loss.item()
-                profile_loss_avg += profile_loss.item()
                 loss_avg += loss.item()
-                # acc_avg += acc.item()
 
             post_fix = {
                 "epoch": epoch,
                 "loss_avg": '{:.4f}'.format(loss_avg/len(rec_data_iter)),
                 "seq_loss_avg": '{:.4f}'.format(seq_loss_avg/len(rec_data_iter)),
-                "seq_profile_loss_avg": '{:.4f}'.format(seq_profile_loss_avg/len(rec_data_iter)),
-                "profile_loss_avg": '{:.4f}'.format(profile_loss_avg/len(rec_data_iter)),
                 "shaply_value":shaply_values_softmax,
                 "shaply_domain_datanum":shaply_values_datanum,
-                # "training_acc_avg": '{:.4f}'.format(acc_avg/len(rec_data_iter)),
             }
 
             if (epoch + 1) % self.args.log_freq == 0:
@@ -247,34 +208,6 @@ class PretrainProfileTrainer(Trainer):
 
             with open(self.args.log_file, 'a') as f:
                 f.write(str(post_fix) + '\n')
-
-#         else:        
-#             self.model.eval()
-            
-            
-#             pred_list = None
-#             with torch.no_grad():
-#                 for i, batch in rec_data_iter:
-#                     # 0. batch_data will be sent into the device(GPU or cpu)
-#                     # batch = tuple(t.to(self.device) for t in batch)
-#                     batch = tuple(t.to('cuda:0') for t in batch)#cpu
-
-
-#                     item_input, item_pos, item_neg, test_neg , item_answer, cat1_input, cat1_pos, cat1_neg , cat2_input, cat2_pos, cat2_neg, type_input = batch
-#                     # input_ids, target_pos, target_neg, test_neg, answers = batch
-#                     sequence_output_1, sequence_output_2, recommend_output = self.model.to('cuda:0').module.get_last_emb(item_input, cat1_input, cat2_input, type_input, item_pos, item_neg, self.args.hierarhical,cuda_yn='y')#'cpu'
-
-
-#                     test_neg_items = torch.cat((item_answer, test_neg), -1)
-
-#                     test_logits = self.predict_sample(recommend_output, test_neg_items)
-#                     test_logits = test_logits.cpu().detach().numpy().copy()
-#                     if i == 0:
-#                         pred_list = test_logits
-#                     else:
-#                         pred_list = np.append(pred_list, test_logits, axis=0)
-
-#                 return self.get_sample_scores(epoch, pred_list)  
 
         else:        
             self.model.eval()
@@ -286,8 +219,7 @@ class PretrainProfileTrainer(Trainer):
             with torch.no_grad():
                 for i, batch in rec_data_iter:
                     # 0. batch_data will be sent into the device(GPU or cpu)
-                    # batch = tuple(t.to(self.device) for t in batch)
-                    batch = tuple(t.to('cuda:0') for t in batch)#cpu
+                    batch = tuple(t.to('cuda:0') for t in batch)
 
 
                     item_input, item_pos, item_neg, test_neg , item_answer, cat1_input, cat1_pos, cat1_neg , cat2_input, cat2_pos, cat2_neg, type_input, type_pos = batch
@@ -299,19 +231,6 @@ class PretrainProfileTrainer(Trainer):
 
                     test_logits = self.predict_sample(recommend_output, test_neg_items)
                     test_logits = test_logits.cpu().detach().numpy().copy()
-
-
-#                     if i == 0:
-#                         pred_list = test_logits
-#                     elif i!=0 and type_pos[:,-1].shape[0]==self.args.batch_size:
-#                         pred_list = np.append(pred_list, test_logits, axis=0)
-#                     else:
-#                         pass
-#                     if type_pos[:,-1].shape[0]==self.args.batch_size: #numpy upgrade 이슈로 batch shape이 맞지 않는 array는 concat 안됨
-#                         type_pos_list.append(type_pos[:,-1].cpu().detach().numpy().copy())
-
-                
-#                 type_pos_final=np.concatenate(np.array(type_pos_list))
                     
                     if i == 0:
                         pred_list = test_logits
@@ -320,7 +239,7 @@ class PretrainProfileTrainer(Trainer):
                     else:
                         pass
                     
-                    if type_pos[:,-1].shape[0]==self.args.batch_size: #numpy upgrade 이슈로 batch shape이 맞지 않는 array는 concat 안됨
+                    if type_pos[:,-1].shape[0]==self.args.batch_size:
                         type_pos_list.append(type_pos[:,-1].cpu().detach().numpy().copy())
 
                 type_pos_final=np.concatenate(np.array(type_pos_list))                  
