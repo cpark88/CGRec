@@ -36,8 +36,7 @@ class TorchVocab(object):
         """
         self.freqs = counter
         counter = counter.copy()
-        # min_freq = max(min_freq, 5) # min_freq이하는 unk
-        min_freq = max(min_freq, 1) # min_freq이하는 unk
+        min_freq = max(min_freq, 1)
 
         self.itos = list(specials)
         # frequencies of special tokens are not counted when building vocabulary
@@ -118,18 +117,7 @@ class Vocab(TorchVocab):
 
 # Building Vocab with text files
 class WordVocab(Vocab):
-    def __init__(self, texts, max_size=None, min_freq=1):#texts-->list
-        # print("Building Vocab")
-        # counter = Counter()
-        # for line in tqdm.tqdm(texts):
-        #     if isinstance(line, list):
-        #         words = line
-        #     else:
-        #         #words = line.replace("\n", "").replace("\t", "").split()
-        #         words = line.split(",")
-        #     for word in words:
-        #         counter[word] += 1
-        # super().__init__(counter, max_size=max_size, min_freq=min_freq)
+    def __init__(self, texts, max_size=None, min_freq=1):
         
         print("Building Vocab")
         counter = Counter()
