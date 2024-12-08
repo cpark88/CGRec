@@ -25,6 +25,7 @@ pip install -r requirements.txt
 ```
 
 ## Train
+To facilitate smooth testing, we have uploaded a small-sized temporary raw data in src/amazon_list_dataset_202312_sampled.pkl. By executing the command below, the datasets necessary for model training will be generated and saved.
 ***
 
 ```bash
